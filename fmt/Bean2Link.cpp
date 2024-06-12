@@ -38,6 +38,7 @@ namespace NekoGui_fmt {
         query.addQueryItem("security", security);
 
         if (!stream->sni.isEmpty()) query.addQueryItem("sni", stream->sni);
+        if (!stream->alpn.isEmpty()) query.addQueryItem("alpn", stream->alpn);
         if (stream->allow_insecure) query.addQueryItem("allowInsecure", "1");
         if (!stream->utlsFingerprint.isEmpty()) query.addQueryItem("fp", stream->utlsFingerprint);
 
@@ -50,13 +51,14 @@ namespace NekoGui_fmt {
         // type
         query.addQueryItem("type", stream->network);
 
-        if (stream->network == "ws" || stream->network == "http") {
+        if (stream->network == "ws" || stream->network == "http" || stream->network == "httpupgrade") {
             if (!stream->path.isEmpty()) query.addQueryItem("path", stream->path);
             if (!stream->host.isEmpty()) query.addQueryItem("host", stream->host);
         } else if (stream->network == "grpc") {
             if (!stream->path.isEmpty()) query.addQueryItem("serviceName", stream->path);
         } else if (stream->network == "tcp") {
             if (stream->header_type == "http") {
+                if (!stream->path.isEmpty()) query.addQueryItem("path", stream->path);
                 query.addQueryItem("headerType", "http");
                 query.addQueryItem("host", stream->host);
             }
@@ -135,7 +137,11 @@ namespace NekoGui_fmt {
 
             if (!stream->sni.isEmpty()) query.addQueryItem("sni", stream->sni);
             if (stream->allow_insecure) query.addQueryItem("allowInsecure", "1");
-            if (!stream->utlsFingerprint.isEmpty()) query.addQueryItem("fp", stream->utlsFingerprint);
+            if (stream->utlsFingerprint.isEmpty()) {
+                query.addQueryItem("fp", NekoGui::dataStore->utlsFingerprint);
+            } else {
+                query.addQueryItem("fp", stream->utlsFingerprint);
+            }
 
             if (security == "reality") {
                 query.addQueryItem("pbk", stream->reality_pbk);
@@ -146,7 +152,7 @@ namespace NekoGui_fmt {
             // type
             query.addQueryItem("type", stream->network);
 
-            if (stream->network == "ws" || stream->network == "http") {
+            if (stream->network == "ws" || stream->network == "http" || stream->network == "httpupgrade") {
                 if (!stream->path.isEmpty()) query.addQueryItem("path", stream->path);
                 if (!stream->host.isEmpty()) query.addQueryItem("host", stream->host);
             } else if (stream->network == "grpc") {
@@ -212,6 +218,26 @@ namespace NekoGui_fmt {
             if (!udpRelayMode.isEmpty()) q.addQueryItem("udp_relay_mode", udpRelayMode);
             if (allowInsecure) q.addQueryItem("allow_insecure", "1");
             if (disableSni) q.addQueryItem("disable_sni", "1");
+            if (!q.isEmpty()) url.setQuery(q);
+            if (!name.isEmpty()) url.setFragment(name);
+        } else if (proxy_type == proxy_Hysteria2) {
+            url.setScheme("hy2");
+            url.setHost(serverAddress);
+            url.setPort(serverPort);
+            if (password.contains(":")) {
+                url.setUserName(SubStrBefore(password, ":"));
+                url.setPassword(SubStrAfter(password, ":"));
+            } else {
+                url.setUserName(password);
+            }
+            QUrlQuery q;
+            if (!obfsPassword.isEmpty()) {
+                q.addQueryItem("obfs", "salamander");
+                q.addQueryItem("obfs-password", obfsPassword);
+            }
+            if (!hopPort.trimmed().isEmpty()) q.addQueryItem("mport", hopPort);
+            if (allowInsecure) q.addQueryItem("insecure", "1");
+            if (!sni.isEmpty()) q.addQueryItem("sni", sni);
             if (!q.isEmpty()) url.setQuery(q);
             if (!name.isEmpty()) url.setFragment(name);
         }

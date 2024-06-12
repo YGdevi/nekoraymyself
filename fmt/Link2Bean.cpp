@@ -54,7 +54,13 @@ namespace NekoGui_fmt {
         if (serverPort == -1) serverPort = 443;
 
         // security
-        stream->network = GetQueryValue(query, "type", "tcp");
+
+        auto type =  GetQueryValue(query, "type", "tcp");
+        if (type == "h2") {
+            type = "http";
+        }
+        stream->network = type;
+
         if (proxy_type == proxy_Trojan) {
             stream->security = GetQueryValue(query, "security", "tls").replace("reality", "tls").replace("none", "");
         } else {
@@ -64,11 +70,15 @@ namespace NekoGui_fmt {
         auto sni2 = GetQueryValue(query, "peer");
         if (!sni1.isEmpty()) stream->sni = sni1;
         if (!sni2.isEmpty()) stream->sni = sni2;
+        stream->alpn = GetQueryValue(query, "alpn");
         if (!query.queryItemValue("allowInsecure").isEmpty()) stream->allow_insecure = true;
         stream->reality_pbk = GetQueryValue(query, "pbk", "");
         stream->reality_sid = GetQueryValue(query, "sid", "");
         stream->reality_spx = GetQueryValue(query, "spx", "");
         stream->utlsFingerprint = GetQueryValue(query, "fp", "");
+        if (stream->utlsFingerprint.isEmpty()) {
+            stream->utlsFingerprint = NekoGui::dataStore->utlsFingerprint;
+        }
 
         // type
         if (stream->network == "ws") {
@@ -77,12 +87,16 @@ namespace NekoGui_fmt {
         } else if (stream->network == "http") {
             stream->path = GetQueryValue(query, "path", "");
             stream->host = GetQueryValue(query, "host", "").replace("|", ",");
+        } else if (stream->network == "httpupgrade") {
+            stream->path = GetQueryValue(query, "path", "");
+            stream->host = GetQueryValue(query, "host", "");
         } else if (stream->network == "grpc") {
             stream->path = GetQueryValue(query, "serviceName", "");
         } else if (stream->network == "tcp") {
             if (GetQueryValue(query, "headerType") == "http") {
                 stream->header_type = "http";
                 stream->host = GetQueryValue(query, "host", "");
+                stream->path = GetQueryValue(query, "path", "");
             }
         }
 
@@ -149,7 +163,12 @@ namespace NekoGui_fmt {
             stream->sni = objN["sni"].toString();
             stream->header_type = objN["type"].toString();
             auto net = objN["net"].toString();
-            if (!net.isEmpty()) stream->network = net;
+            if (!net.isEmpty()) {
+                if (net == "h2") {
+                    net = "http";
+                }
+                stream->network = net;
+            }
             auto scy = objN["scy"].toString();
             if (!scy.isEmpty()) security = scy;
             // TLS (XTLS?)
@@ -172,7 +191,11 @@ namespace NekoGui_fmt {
             security = GetQueryValue(query, "encryption", "auto");
 
             // security
-            stream->network = GetQueryValue(query, "type", "tcp");
+            auto type = GetQueryValue(query, "type", "tcp");
+            if (type == "h2") {
+                type = "http";
+            }
+            stream->network = type;
             stream->security = GetQueryValue(query, "security", "tls").replace("reality", "tls");
             auto sni1 = GetQueryValue(query, "sni");
             auto sni2 = GetQueryValue(query, "peer");
@@ -183,6 +206,9 @@ namespace NekoGui_fmt {
             stream->reality_sid = GetQueryValue(query, "sid", "");
             stream->reality_spx = GetQueryValue(query, "spx", "");
             stream->utlsFingerprint = GetQueryValue(query, "fp", "");
+            if (stream->utlsFingerprint.isEmpty()) {
+                stream->utlsFingerprint = NekoGui::dataStore->utlsFingerprint;
+            }
 
             // type
             if (stream->network == "ws") {
@@ -191,11 +217,15 @@ namespace NekoGui_fmt {
             } else if (stream->network == "http") {
                 stream->path = GetQueryValue(query, "path", "");
                 stream->host = GetQueryValue(query, "host", "").replace("|", ",");
+            } else if (stream->network == "httpupgrade") {
+                stream->path = GetQueryValue(query, "path", "");
+                stream->host = GetQueryValue(query, "host", "");
             } else if (stream->network == "grpc") {
                 stream->path = GetQueryValue(query, "serviceName", "");
             } else if (stream->network == "tcp") {
                 if (GetQueryValue(query, "headerType") == "http") {
                     stream->header_type = "http";
+                    stream->path = GetQueryValue(query, "path", "");
                     stream->host = GetQueryValue(query, "host", "");
                 }
             }
@@ -230,13 +260,12 @@ namespace NekoGui_fmt {
             // https://hysteria.network/docs/uri-scheme/
             if (!query.hasQueryItem("upmbps") || !query.hasQueryItem("downmbps")) return false;
 
-            name = url.fragment();
+            name = url.fragment(QUrl::FullyDecoded);
             serverAddress = url.host();
             serverPort = url.port();
-            serverAddress = url.host(); // default sni
             hopPort = query.queryItemValue("mport");
             obfsPassword = query.queryItemValue("obfsParam");
-            allowInsecure = query.queryItemValue("insecure") == "1";
+            allowInsecure = QStringList{"1", "true"}.contains(query.queryItemValue("insecure"));
             uploadMbps = query.queryItemValue("upmbps").toInt();
             downloadMbps = query.queryItemValue("downmbps").toInt();
 
@@ -261,7 +290,7 @@ namespace NekoGui_fmt {
             // by daeuniverse
             // https://github.com/daeuniverse/dae/discussions/182
 
-            name = url.fragment();
+            name = url.fragment(QUrl::FullyDecoded);
             serverAddress = url.host();
             if (serverPort == -1) serverPort = 443;
             serverPort = url.port();
@@ -275,6 +304,21 @@ namespace NekoGui_fmt {
             udpRelayMode = query.queryItemValue("udp_relay_mode");
             allowInsecure = query.queryItemValue("allow_insecure") == "1";
             disableSni = query.queryItemValue("disable_sni") == "1";
+        } else if (QStringList{"hy2", "hysteria2"}.contains(url.scheme())) {
+            name = url.fragment(QUrl::FullyDecoded);
+            serverAddress = url.host();
+            serverPort = url.port();
+            hopPort = query.queryItemValue("mport");
+            obfsPassword = query.queryItemValue("obfs-password");
+            allowInsecure = QStringList{"1", "true"}.contains(query.queryItemValue("insecure"));
+
+            if (url.password().isEmpty()) {
+                password = url.userName();
+            } else {
+                password = url.userName() + ":" + url.password();
+            }
+
+            sni = query.queryItemValue("sni");
         }
 
         return true;

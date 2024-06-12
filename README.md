@@ -10,7 +10,7 @@ Support Windows / Linux out of the box now.
 
 ## Readme Translations
 
-中文 / English / [fa_IR](README_fa.md)
+中文 / English / [fa_IR](README_fa.md) / [日本語](README_ja.md) / [Русский](README_ru.md)
 
 ## 下载 / Download
 
@@ -26,10 +26,21 @@ Support Windows / Linux out of the box now.
 
 ### Package
 
-1. AUR: [nekoray-git](https://aur.archlinux.org/packages/nekoray-git)
-2. Scoop extras: `scoop install nekoray`
+#### AUR
 
-## 更改记录 & 发布频道 / Changelog & Telegram channel
+- [nekoray](https://aur.archlinux.org/packages/nekoray)
+- [nekoray-git](https://aur.archlinux.org/packages/nekoray-git) [![AUR CI](https://github.com/MatsuriDayo/nekoray/actions/workflows/update-pkgbuild.yml/badge.svg)](https://github.com/MatsuriDayo/nekoray/actions/workflows/update-pkgbuild.yaml)
+
+#### archlinuxcn
+
+- [nekoray](https://github.com/archlinuxcn/repo/tree/master/archlinuxcn/nekoray)
+- [nekoray-git](https://github.com/archlinuxcn/repo/tree/master/archlinuxcn/nekoray-git)
+
+#### Scoop Extras
+
+`scoop install nekoray`
+
+## 更改记录 & 发布频道 / Changelog & Telegram Channel
 
 https://t.me/Matsuridayo
 
@@ -39,23 +50,24 @@ https://matsuridayo.github.io
 
 ## 代理 / Proxy
 
-* SOCKS (4/4a/5)
-* HTTP(S)
-* Shadowsocks
-* VMess
-* VLESS
-* Trojan
-* TUIC ( sing-box )
-* NaïveProxy ( Custom Core )
-* Hysteria ( Custom Core or sing-box )
-* Custom Outbound
-* Custom Config
-* Custom Core
+- SOCKS (4/4a/5)
+- HTTP(S)
+- Shadowsocks
+- VMess
+- VLESS
+- Trojan
+- TUIC ( sing-box )
+- NaïveProxy ( Custom Core )
+- Hysteria ( Custom Core or sing-box )
+- Hysteria2 ( Custom Core or sing-box )
+- Custom Outbound
+- Custom Config
+- Custom Core
 
 ## 订阅 / Subscription
 
-* Raw: some widely used formats (like shadowsocks, clash and v2rayN)
-* 原始格式：一些广泛使用的格式（如 shadowsocks、clash 和 v2rayN）
+- Raw: some widely used formats (like Shadowsocks, Clash and v2rayN)
+- 原始格式: 一些广泛使用的格式 (如 Shadowsocks、Clash 和 v2rayN)
 
 ## 运行参数
 
@@ -83,9 +95,11 @@ https://matsuridayo.github.io
 
 ## 捐助 / Donate
 
-Donations are welcome to support project development.
+如果这个项目对您有帮助，可以通过捐赠的方式帮助我们维持这个项目。
 
-欢迎捐赠以支持项目开发。
+捐赠满等额 50 USD 可以在「[捐赠榜](https://mtrdnt.pages.dev/donation_list)」显示头像，如果您未被添加到这里，欢迎联系我们补充。
+
+Donations of 50 USD or more can display your avatar on the [Donation List](https://mtrdnt.pages.dev/donation_list). If you are not added here, please contact us to add it.
 
 USDT TRC20
 

@@ -46,7 +46,7 @@ DialogEditProfile::DialogEditProfile(const QString &_type, int profileOrGroupId,
             ui->path_l->setVisible(true);
             ui->host->setVisible(false);
             ui->host_l->setVisible(false);
-        } else if (txt == "ws" || txt == "http") {
+        } else if (txt == "ws" || txt == "http" || txt == "httpupgrade") {
             ui->header_type->setVisible(false);
             ui->header_type_l->setVisible(false);
             ui->path->setVisible(true);
@@ -89,6 +89,10 @@ DialogEditProfile::DialogEditProfile(const QString &_type, int profileOrGroupId,
     });
     ui->network->removeItem(0);
 
+//    if (IS_NEKO_BOX) {
+//        ui->network->addItem("httpupgrade");
+//    }
+
     // security changed
     connect(ui->security, &QComboBox::currentTextChanged, this, [=](const QString &txt) {
         if (txt == "tls") {
@@ -121,6 +125,7 @@ DialogEditProfile::DialogEditProfile(const QString &_type, int profileOrGroupId,
         LOAD_TYPE("vless")
         LOAD_TYPE("naive")
         LOAD_TYPE("hysteria")
+        LOAD_TYPE("hysteria2")
         LOAD_TYPE("tuic")
         ui->type->addItem(tr("Custom (%1 outbound)").arg(software_core_name), "internal");
         ui->type->addItem(tr("Custom (%1 config)").arg(software_core_name), "internal-full");
@@ -177,7 +182,7 @@ void DialogEditProfile::typeSelected(const QString &newType) {
         auto _innerWidget = new EditNaive(this);
         innerWidget = _innerWidget;
         innerEditor = _innerWidget;
-    } else if (type == "hysteria" || type == "tuic") {
+    } else if (type == "hysteria" || type == "hysteria2" || type == "tuic") {
         auto _innerWidget = new EditQUIC(this);
         innerWidget = _innerWidget;
         innerEditor = _innerWidget;
@@ -220,7 +225,11 @@ void DialogEditProfile::typeSelected(const QString &newType) {
         ui->host->setText(stream->host);
         ui->sni->setText(stream->sni);
         ui->alpn->setText(stream->alpn);
-        ui->utlsFingerprint->setCurrentText(stream->utlsFingerprint);
+        if (newEnt) {
+            ui->utlsFingerprint->setCurrentText(NekoGui::dataStore->utlsFingerprint);
+        } else {
+            ui->utlsFingerprint->setCurrentText(stream->utlsFingerprint);
+        }
         ui->insecure->setChecked(stream->allow_insecure);
         ui->header_type->setCurrentText(stream->header_type);
         ui->ws_early_data_name->setText(stream->ws_early_data_name);

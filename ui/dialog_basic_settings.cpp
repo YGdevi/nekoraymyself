@@ -157,6 +157,7 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     // Subscription
 
     ui->user_agent->setText(NekoGui::dataStore->user_agent);
+    ui->user_agent->setPlaceholderText(NekoGui::dataStore->GetUserAgent(true));
     D_LOAD_BOOL(sub_use_proxy)
     D_LOAD_BOOL(sub_clear)
     D_LOAD_BOOL(sub_insecure)
@@ -170,6 +171,7 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     CACHE.extraCore = QString2QJsonObject(NekoGui::dataStore->extraCore->core_map);
     if (!CACHE.extraCore.contains("naive")) CACHE.extraCore.insert("naive", "");
     if (!CACHE.extraCore.contains("hysteria")) CACHE.extraCore.insert("hysteria", "");
+    if (!CACHE.extraCore.contains("hysteria2")) CACHE.extraCore.insert("hysteria2", "");
     if (!CACHE.extraCore.contains("tuic")) CACHE.extraCore.insert("tuic", "");
     //
     auto extra_core_layout = ui->extra_core_box_scrollAreaWidgetContents->layout();

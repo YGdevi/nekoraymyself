@@ -70,7 +70,6 @@ namespace NekoGui_sub {
             auto j = DecodeB64IfValid(link.fragment().toUtf8(), QByteArray::Base64UrlEncoding);
             if (j.isEmpty()) return;
             ent->bean->FromJsonBytes(j);
-            MW_show_log("nekoray format: " + ent->bean->DisplayTypeAndName());
         }
 
         // SOCKS
@@ -124,10 +123,18 @@ namespace NekoGui_sub {
             if (!ok) return;
         }
 
-        // Hysteria
+        // Hysteria1
         if (str.startsWith("hysteria://")) {
             needFix = false;
             ent = NekoGui::ProfileManager::NewProxyEntity("hysteria");
+            auto ok = ent->QUICBean()->TryParseLink(str);
+            if (!ok) return;
+        }
+
+        // Hysteria2
+        if (str.startsWith("hysteria2://") || str.startsWith("hy2://")) {
+            needFix = false;
+            ent = NekoGui::ProfileManager::NewProxyEntity("hysteria2");
             auto ok = ent->QUICBean()->TryParseLink(str);
             if (!ok) return;
         }
@@ -300,6 +307,9 @@ namespace NekoGui_sub {
                     bean->stream->alpn = Node2QStringList(proxy["alpn"]).join(",");
                     bean->stream->allow_insecure = Node2Bool(proxy["skip-cert-verify"]);
                     bean->stream->utlsFingerprint = Node2QString(proxy["client-fingerprint"]);
+                    if (bean->stream->utlsFingerprint.isEmpty()) {
+                        bean->stream->utlsFingerprint = NekoGui::dataStore->utlsFingerprint;
+                    }
 
                     // sing-mux
                     auto smux = NodeChild(proxy, {"smux"});
@@ -340,6 +350,11 @@ namespace NekoGui_sub {
                     bean->stream->alpn = Node2QStringList(proxy["alpn"]).join(",");
                     if (Node2Bool(proxy["tls"])) bean->stream->security = "tls";
                     if (Node2Bool(proxy["skip-cert-verify"])) bean->stream->allow_insecure = true;
+                    bean->stream->utlsFingerprint = Node2QString(proxy["client-fingerprint"]);
+                    bean->stream->utlsFingerprint = Node2QString(proxy["client-fingerprint"]);
+                    if (bean->stream->utlsFingerprint.isEmpty()) {
+                        bean->stream->utlsFingerprint = NekoGui::dataStore->utlsFingerprint;
+                    }
 
                     // sing-mux
                     auto smux = NodeChild(proxy, {"smux"});
@@ -361,6 +376,10 @@ namespace NekoGui_sub {
                         bean->stream->path = Node2QString(ws["path"]);
                         bean->stream->ws_early_data_length = Node2Int(ws["max-early-data"]);
                         bean->stream->ws_early_data_name = Node2QString(ws["early-data-header-name"]);
+                        // for Xray
+                        if (Node2QString(ws["early-data-header-name"]) == "Sec-WebSocket-Protocol") {
+                            bean->stream->path += "?ed=" + Node2QString(ws["max-early-data"]);
+                        }
                     }
 
                     auto grpc = NodeChild(proxy, {"grpc-opts", "grpc-opt"});
@@ -426,6 +445,20 @@ namespace NekoGui_sub {
                     auto downMbps = Node2QString(proxy["down"]).split(" ")[0].toInt();
                     if (upMbps > 0) bean->uploadMbps = upMbps;
                     if (downMbps > 0) bean->downloadMbps = downMbps;
+                } else if (type == "hysteria2") {
+                    auto bean = ent->QUICBean();
+
+                    bean->hopPort = Node2QString(proxy["ports"]);
+
+                    bean->allowInsecure = Node2Bool(proxy["skip-cert-verify"]);
+                    bean->caText = Node2QString(proxy["ca-str"]);
+                    bean->sni = Node2QString(proxy["sni"]);
+
+                    bean->obfsPassword = Node2QString(proxy["obfs-password"]);
+                    bean->password = Node2QString(proxy["password"]);
+
+                    bean->uploadMbps = Node2QString(proxy["up"]).split(" ")[0].toInt();
+                    bean->downloadMbps = Node2QString(proxy["down"]).split(" ")[0].toInt();
                 } else if (type == "tuic") {
                     auto bean = ent->QUICBean();
 
@@ -445,6 +478,8 @@ namespace NekoGui_sub {
                     bean->alpn = Node2QStringList(proxy["alpn"]).join(",");
                     bean->caText = Node2QString(proxy["ca-str"]);
                     bean->sni = Node2QString(proxy["sni"]);
+
+                    if (Node2Bool(proxy["udp-over-stream"])) bean->uos = true;
 
                     if (!Node2QString(proxy["ip"]).isEmpty()) {
                         if (bean->sni.isEmpty()) bean->sni = bean->serverAddress;
@@ -641,32 +676,32 @@ bool UI_update_all_groups_Updating = false;
 #define should_skip_group(g) (g == nullptr || g->url.isEmpty() || g->archive || (onlyAllowed && g->skip_auto_update))
 
 void serialUpdateSubscription(const QList<int> &groupsTabOrder, int _order, bool onlyAllowed) {
-    // calculate next group
-    int nextOrder = _order;
-    std::shared_ptr<NekoGui::Group> nextGroup;
-    forever {
-        nextOrder += 1;
-        if (nextOrder >= groupsTabOrder.size()) break;
-        auto nextGid = groupsTabOrder[nextOrder];
-        nextGroup = NekoGui::profileManager->GetGroup(nextGid);
-        if (should_skip_group(nextGroup)) continue;
-        break;
-    }
-
-    // calculate this group
-    auto group = NekoGui::profileManager->GetGroup(groupsTabOrder[_order]);
-    if (group == nullptr) {
+    if (_order >= groupsTabOrder.size()) {
         UI_update_all_groups_Updating = false;
         return;
     }
 
-    // v2.2: listener is moved to GroupItem, no refresh here.
-    NekoGui_sub::groupUpdater->AsyncUpdate(group->url, group->id, [=] {
-        if (nextGroup == nullptr) {
-            UI_update_all_groups_Updating = false;
-        } else {
-            serialUpdateSubscription(groupsTabOrder, nextOrder, onlyAllowed);
+    // calculate this group
+    auto group = NekoGui::profileManager->GetGroup(groupsTabOrder[_order]);
+    if (group == nullptr || should_skip_group(group)) {
+        serialUpdateSubscription(groupsTabOrder, _order + 1, onlyAllowed);
+        return;
+    }
+
+    int nextOrder = _order + 1;
+    while (nextOrder < groupsTabOrder.size()) {
+        auto nextGid = groupsTabOrder[nextOrder];
+        auto nextGroup = NekoGui::profileManager->GetGroup(nextGid);
+        if (!should_skip_group(nextGroup)) {
+            break;
         }
+        nextOrder += 1;
+    }
+
+    // Async update current group
+    UI_update_all_groups_Updating = true;
+    NekoGui_sub::groupUpdater->AsyncUpdate(group->url, group->id, [=] {
+        serialUpdateSubscription(groupsTabOrder, nextOrder, onlyAllowed);
     });
 }
 
@@ -675,13 +710,7 @@ void UI_update_all_groups(bool onlyAllowed) {
         MW_show_log("The last subscription update has not exited.");
         return;
     }
-    // first: freeze group order
+
     auto groupsTabOrder = NekoGui::profileManager->groupsTabOrder;
-    for (const auto &gid: groupsTabOrder) {
-        auto group = NekoGui::profileManager->GetGroup(gid);
-        if (should_skip_group(group)) continue;
-        // start
-        UI_update_all_groups_Updating = true;
-        serialUpdateSubscription(groupsTabOrder, groupsTabOrder.indexOf(gid), onlyAllowed);
-    }
+    serialUpdateSubscription(groupsTabOrder, 0, onlyAllowed);
 }
